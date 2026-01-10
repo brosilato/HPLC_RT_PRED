@@ -1,0 +1,10 @@
+ipykernel
+pyprojroot
+numpy
+scipy
+scikit-learn
+pandas
+seaborn
+rdkit
+torch
+
