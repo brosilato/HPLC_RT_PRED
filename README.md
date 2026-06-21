@@ -14,15 +14,19 @@
 <!-- PREOJECT DESCRIPTION -->
 ## Project Description
 
-This project aims to build a deep learning (CNN) solution to predict HPLC retention times of a large dataset using only SMILES strings as input features.
+This project aims to build a deep learning solutions to predict HPLC retention times. Three architectures will be considered:
+
+1.  Multi-Layer Perceptron (MLP). I will use fingerprints as features.
+2.  Convolutional Neural Network (CNN). I will use tokenized smiles as features.
+3.  Graph neural network (GNN). It will use node features but their nature is still undecided.
 
 ### Built with
 
 The fundamentals libraries that I employed building this project are:
 
-* RDKit.
-* Scikit-Learn.
-* PyTorch.
+* RDKit
+* Scikit-Learn
+* PyTorch
 
 <!-- METLIN SMRT DATASET -->
 ## The METLIN SMRT Dataset
