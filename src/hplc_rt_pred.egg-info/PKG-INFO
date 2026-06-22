@@ -1,0 +1,54 @@
+Metadata-Version: 2.4
+Name: hplc-rt-pred
+Version: 0.1.0
+Summary: Add your description here
+Requires-Python: >=3.14
+Description-Content-Type: text/markdown
+Requires-Dist: ipykernel>=7.3.0
+Requires-Dist: numpy>=2.4.6
+Requires-Dist: pandas>=3.0.3
+Requires-Dist: pyprojroot>=0.3.0
+Requires-Dist: rdkit>=2026.3.3
+Requires-Dist: scikit-learn>=1.9.0
+Requires-Dist: scipy>=1.17.1
+Requires-Dist: seaborn>=0.13.2
+Requires-Dist: torch>=2.12.1
+
+<!-- TABLE OF CONTENTS -->
+<details>
+  <summary>Table of Contents</summary>
+  <ol>
+    <li>
+      <a href="#project-description">Project Description</a>
+      <ul>
+        <li><a href="#built-with">Built with</a></li>
+      </ul>
+    </li>
+  </ol>
+</details>
+
+<!-- PREOJECT DESCRIPTION -->
+## Project Description
+
+This project aims to build a deep learning solutions to predict HPLC retention times. Three architectures will be considered:
+
+1.  Multi-Layer Perceptron (MLP). I will use fingerprints as features.
+2.  Convolutional Neural Network (CNN). I will use tokenized smiles as features.
+3.  Graph neural network (GNN). It will use node features but their nature is still undecided.
+
+### Built with
+
+The fundamentals libraries that I employed building this project are:
+
+* RDKit
+* Scikit-Learn
+* PyTorch
+
+<!-- METLIN SMRT DATASET -->
+## The METLIN SMRT Dataset
+
+The METLIN small molecule retention times (SMRT) was downloaded as a csv file on 4/20/2025 from 
+[FigShare](https://figshare.com/articles/dataset/The_METLIN_small_molecule_dataset_for_machine_learning-based_retention_time_prediction/8038913).
+
+The file includes the PubMed ID of each compound, the measured retention time, and International Chemical Identifier (InChI).
+
