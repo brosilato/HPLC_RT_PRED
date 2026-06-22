@@ -1,7 +1,7 @@
 from rdkit import Chem
 
 def inchi_to_smiles(inchi_string: str) -> str | None:
-    """Converts InChI strings into SMILES one at a time
+    """Converts InChI strings into SMILES strings one at a time
 
     Args:
         str (inchi_string): InChI string of the molecule
