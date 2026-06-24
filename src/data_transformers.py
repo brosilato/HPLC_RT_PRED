@@ -6,8 +6,62 @@ from sklearn.base import BaseEstimator, TransformerMixin
 from sklearn.utils._param_validation import StrOptions, Interval
 
 class SmilesToFingerPrintTransformer(BaseEstimator, TransformerMixin):
-    """Scikit-Learn like transformer that generates a molecular fingerprint
-    representation from SMILES strings
+    """Fingerprint (FP) generation
+
+    Scikit-Learn like transformer that generates a molecular fingerprint
+    representation from SMILES strings. This transformer is indeed an adapter
+    for the open-source library RDKit. Three main types of fingerprints can
+    be genreted: Morgan (circular) fingerprints, RDKit (path) fingerprints 
+    and MACCS (substructure keys) fingerprints.
+
+    For Morgan and RDKit fingerprints, the size of the fingerprint can be
+    selected, while for MACCS fps the size is fix and any selection will be
+    ignored.
+
+    For Morgan snd RDKit fingerprints, one can select whether counts or bits
+    are output. MACCS only produces bitvectors and asking for MACCS counts
+    will rise an exception.
+
+    For all fingerprints, the output can be requested to be a numpy array
+    or a scipy sparse array.
+
+    The generation of mol objects from smiles with RDKit, a necessary step,
+    can often help. This issue is handled in a not satisfactory, funky way by
+    generating an all 0 fp.
+
+    Parameters
+    ----------
+    fp_type : {'morgan', 'rdkit', 'maccs'}, default='morgan'
+        Type of fingerprint to output.
+            'morgan': 
+                Circular, Morgan fingerprints.
+            'rdkit': 
+                Path-based, RDKit fingerprints.
+            'maccs': 
+                Substructure key, MACCS fingerprints.
+    
+    radius: int, default=3
+        When computing Morgan fps, this is the maximum radius of the molecular
+        features included ni the fingerprints. When computing RDKit
+        fingerprints, it corresponds to the maximum size of the paths
+        considered. When computing MACCS fingerprints, this value is ignored.
+
+    counts: bool, default=False
+        If true, fingerprint will contain integer counts of how many times the
+        moieties associated to each fingerpring appear in each molecule. If
+        False, a one-hot encoding for fingerprint will be used. MACCS fps do
+        not provide counts and setting this parameter to True will result in an
+        exception being rise.
+
+    fp_size: int, default=2048
+        The size of the fingerprint (number of counts/bits). For MACCS fps, this
+        parameter is ignored since the always produce 167-sized vectors. 
+
+    counts: dense, default=False
+        If True, the output of the transformation (the fingerprint matrix) will
+        be a numpy array. If false, the ouput will be a sparse scipy csr_array.
+
+     
     """
 
     _parameter_contraints = {
@@ -88,6 +142,23 @@ class SmilesToFingerPrintTransformer(BaseEstimator, TransformerMixin):
         return transformed [0]
     
     def fit(self, X, y=None):
+        """Fit the model with X.
+
+        Args:
+            X (array_like of shape (n_samples, n_features)):Training data,
+            where `n_samples` (number of SMILES per column) is the number of
+            samples and `n_features` is the number of features (columns
+            containing SMILES).
+            y (array-like, optional): Matrix of the targets/labels. Ignored.
+            Defaults to None.
+
+        Raises:
+            ValueError: If MACCS fingerprints are requested (fp_type = 'maccs')
+            together with counts (counts=True).
+
+        Returns:
+            self: Object. The fitted instance.
+        """
         self._validate_params()
         if self.fp_type == "maccs" and self.counts:
             raise ValueError(
@@ -133,6 +204,19 @@ class SmilesToFingerPrintTransformer(BaseEstimator, TransformerMixin):
         return self
     
     def transform(self, X, y=None):
+        """Computes the fingerprints of the passed molecules.
+
+        Args:
+            X (array_like of shape (n_samples, n_features)):Training data,
+            where `n_samples` (number of SMILES per column) is the number of
+            samples and `n_features` is the number of features (columns
+            containing SMILES).
+            y (array-like, optional): Matrix of the targets/labels. Ignored.
+            Defaults to None.
+
+        Returns:
+            np.array | scipy.sparse.csr_array: Matrix with the fingerprints.
+        """
         self.check_is_fitted()
         return (self._transform_(X), y)
         
