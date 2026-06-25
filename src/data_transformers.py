@@ -1,9 +1,11 @@
 import numpy as np
+from numbers import Integral 
 from rdkit import Chem
 from rdkit.Chem import AllChem, MACCSkeys, rdFingerprintGenerator
 from scipy import sparse
 from sklearn.base import BaseEstimator, TransformerMixin
 from sklearn.utils._param_validation import StrOptions, Interval
+import sklearn.utils.validation
 
 class SmilesToFingerPrintTransformer(BaseEstimator, TransformerMixin):
     """Fingerprint (FP) generation
@@ -64,24 +66,19 @@ class SmilesToFingerPrintTransformer(BaseEstimator, TransformerMixin):
      
     """
 
-    _parameter_contraints = {
+    _parameter_constraints = {
         "fp_type": [StrOptions({"morgan", "rdkit", "maccs"})],
-        "radius": [Interval(Integral, left=1, closed='left')],
-        "fp_size": [Interval(Integral, left=1, closed='left')],
+        "radius": [Interval(Integral, left=1, right=None, closed='left')],
+        "fp_size": [Interval(Integral, left=1, right=None, closed='left')],
     }
 
-    def __init_(self, fp_type: str="morgan", radius:int=3, counts: bool=False, fp_size: int=2048, dense: bool=False):
+    def __init__(self, fp_type: str="morgan", radius: int=3, counts: bool=False, fp_size: int=2048, dense: bool=False):
         self.fp_type = fp_type
         self.radius = radius
         self.counts = counts
         self.fp_size = fp_size
         self.dense = dense
-
-    def __sklearn_tags__(self):
-        tags = super().__sklearn_tags__()
-        tags.input_tags.allow_nan = True # Set based on your needs
-        return tags
-    
+      
     @staticmethod
     def _mol_generator(smile_string):
         mol = Chem.MolFromSmiles(smile_string)
@@ -168,12 +165,12 @@ class SmilesToFingerPrintTransformer(BaseEstimator, TransformerMixin):
             )
  
         self._mol_generator_ = Chem.MolFromSmiles
-        if self.fp_type is 'maccs':
+        if self.fp_type == 'maccs':
             self.fp_converter_ = staticmethod(MACCSkeys.GenMACCSKeys)
             self._transform_ = self._transform_maccs 
         else:
             # Then self.fp_type is 'rdkit' or 'morgan'
-            if self.fp_type is 'morgan':
+            if self.fp_type == 'morgan':
                 self._fp_generator_ = (rdFingerprintGenerator.
                                        GetMorganGenerator(
                                            radius=self.radius, 
@@ -189,18 +186,19 @@ class SmilesToFingerPrintTransformer(BaseEstimator, TransformerMixin):
                                            )
                                         )
             # Let's define the fingerprint generator based on counts/bits
-            if self.counts:
-                self.fp_converter_ = self._fp_generator_.GetCountFingerprint
-            else:
-                # Then not self.counts (bits) 
-                self.fp_converter_ = self._fp_generator_.GetFingerprint
-            # Let's define te proper transformer function based on dense/sparse
-            if self.dense:
+            if self.counts and self.dense:
+                self.fp_converter_ = self._fp_generator_.GetCountFingerprintAsNumPy
                 self._transform_ = self._transform_to_dense
-            else:
-                # Then not self.dense (sparse)
+            elif self.counts and not self.dense:
+                self.fp_converter_ = self._fp_generator_.GetCountFingerprint
                 self._transform_ = self._transform_to_sparse
-            
+            elif not self.counts and self.dense:
+                self.fp_converter_ = self._fp_generator_.GetFingerprintAsNumPy
+                self._transform_ = self._transform_to_dense
+            elif not self.counts and not self.dense:
+                self.fp_converter_ = self._fp_generator_.GetFingerprint
+                self._transform_ = self._transform_to_sparse
+
         return self
     
     def transform(self, X, y=None):
@@ -217,8 +215,12 @@ class SmilesToFingerPrintTransformer(BaseEstimator, TransformerMixin):
         Returns:
             np.array | scipy.sparse.csr_array: Matrix with the fingerprints.
         """
-        self.check_is_fitted()
-        return (self._transform_(X), y)
+        sklearn.utils.validation.check_is_fitted(self)
+        return self._transform_(X)
+    
+    
+    
+    
         
 
 
