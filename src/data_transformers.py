@@ -42,28 +42,40 @@ class SmilesToFingerPrintTransformer(BaseEstimator, TransformerMixin):
             'maccs': 
                 Substructure key, MACCS fingerprints.
     
-    radius: int, default=3
+    radius : int, default=3
         When computing Morgan fps, this is the maximum radius of the molecular
         features included ni the fingerprints. When computing RDKit
         fingerprints, it corresponds to the maximum size of the paths
         considered. When computing MACCS fingerprints, this value is ignored.
 
-    counts: bool, default=False
+    counts : bool, default=False
         If true, fingerprint will contain integer counts of how many times the
         moieties associated to each fingerpring appear in each molecule. If
         False, a one-hot encoding for fingerprint will be used. MACCS fps do
         not provide counts and setting this parameter to True will result in an
         exception being rise.
 
-    fp_size: int, default=2048
+    fp_size : int, default=2048
         The size of the fingerprint (number of counts/bits). For MACCS fps, this
         parameter is ignored since the always produce 167-sized vectors. 
 
-    counts: dense, default=False
+    counts : dense, default=False
         If True, the output of the transformation (the fingerprint matrix) will
         be a numpy array. If false, the ouput will be a sparse scipy csr_array.
 
-     
+    Attributes
+    ----------
+    num_columns_ : int 
+        Expected number of columns of the arrays to be processed by transform.
+        They should have the same noumber of feature columns (SMILES columns)
+        as the array used during fitting.
+
+    feature_names_in_ : ndarray of shape (`n_features_in_`,)
+        Names of features seen during :term:`fit`. Defined only when `X`
+        has feature names that are all strings.   
+
+    failed_mol_ : list[str]
+        List of molecular string whose conversion to mol object failed. 
     """
 
     _parameter_constraints = {
@@ -79,10 +91,10 @@ class SmilesToFingerPrintTransformer(BaseEstimator, TransformerMixin):
         self.fp_size = fp_size
         self.dense = dense
       
-    @staticmethod
-    def _mol_generator(smile_string):
-        mol = Chem.MolFromSmiles(smile_string)
+    def _mol_generator(self, smiles_string):
+        mol = Chem.MolFromSmiles(smiles_string)
         if mol is None:
+            self.failed_mol_.append(smiles_string)
             return Chem.MolFromSmiles('')
         return mol
     
@@ -112,7 +124,7 @@ class SmilesToFingerPrintTransformer(BaseEstimator, TransformerMixin):
         
         transformed = []
         for j in range(X.shape[1]):
-            transformed.append(vstack([array(self.fp_converter_(SmilesToFingerPrintTransformer._mol_generator(smile_string)), dtype=np.int32) for smile_string in X[:,j]]))
+            transformed.append(vstack([array(self.fp_converter_(self._mol_generator(smile_string)), dtype=np.int32) for smile_string in X[:,j]]))
         if len(transformed) > 1:
             return hstack(transformed)
         return transformed[0]
@@ -120,7 +132,7 @@ class SmilesToFingerPrintTransformer(BaseEstimator, TransformerMixin):
     def _transform_to_dense(self, X):
         transformed = []
         for j in range(X.shape[1]):
-            transformed.append(np.vstack([self.fp_converter_(SmilesToFingerPrintTransformer._mol_generator(smile_string)) for smile_string in X[:,j]]))
+            transformed.append(np.vstack([self.fp_converter_(self._mol_generator(smile_string)) for smile_string in X[:,j]]))
         if len(transformed) > 1:
             return np.hstack(transformed)
         return transformed [0]
@@ -133,7 +145,7 @@ class SmilesToFingerPrintTransformer(BaseEstimator, TransformerMixin):
 
         transformed = []
         for j in range(X.shape[1]):
-            transformed.append(sparse.vstack([csr_from_counts_rdkit(self.fp_converter_(SmilesToFingerPrintTransformer._mol_generator(smile_string))) for smile_string in X[:,j]]))
+            transformed.append(sparse.vstack([csr_from_counts_rdkit(self.fp_converter_(self._mol_generator(smile_string))) for smile_string in X[:,j]]))
         if len(transformed) > 1:
             return sparse.hstack(transformed)
         return transformed [0]
@@ -157,6 +169,7 @@ class SmilesToFingerPrintTransformer(BaseEstimator, TransformerMixin):
             self: Object. The fitted instance.
         """
         self._validate_params()
+        self.num_columns_ = X.shape[1]
         if self.fp_type == "maccs" and self.counts:
             raise ValueError(
                 ("SmilesToFingerPrintTransformer can not" 
@@ -164,7 +177,6 @@ class SmilesToFingerPrintTransformer(BaseEstimator, TransformerMixin):
                  + " or choose fp_type='morgan' or fp_type= 'rdkit'")
             )
  
-        self._mol_generator_ = Chem.MolFromSmiles
         if self.fp_type == 'maccs':
             self.fp_converter_ = staticmethod(MACCSkeys.GenMACCSKeys)
             self._transform_ = self._transform_maccs 
@@ -216,6 +228,12 @@ class SmilesToFingerPrintTransformer(BaseEstimator, TransformerMixin):
             np.array | scipy.sparse.csr_array: Matrix with the fingerprints.
         """
         sklearn.utils.validation.check_is_fitted(self)
+        if X.shape[1] != self.num_columns_:
+            raise ValueError(
+                f"The feature matrix has an invalid shape. "
+                f"Expected {self.num_columns_} columns, but got {X.shape[1]}."
+            ) 
+        self.failed_mol_ = list()
         return self._transform_(X)
     
     
