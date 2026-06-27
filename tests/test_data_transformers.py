@@ -3,6 +3,8 @@ from contextlib import nullcontext
 import numpy as np
 import numpy.testing as npt
 from scipy import sparse
+from rdkit import Chem
+from rdkit.Chem import MACCSkeys, rdFingerprintGenerator
 from data_transformers import SmilesToFingerPrintTransformer as STFP
 
 
@@ -26,6 +28,11 @@ def feature_matrix(request):
 @pytest.fixture()
 def STFP_transformer():
     return STFP()
+
+@pytest.fixture()
+def maccs_fp_generator():
+    return MACCSkeys.GenMACCSKeys
+    
 
 class TestSmilesToFingerPrintTransformer:
     @pytest.mark.parametrize(
@@ -107,9 +114,103 @@ class TestSmilesToFingerPrintTransformer:
         expected_dimensions = (feature_matrix.shape[0], feature_matrix.shape[1]*167)
         #assert npt.assert_allclose(produced_output.shape, expected_dimensions)
         assert produced_output.shape == expected_dimensions
-        
+    
+    @pytest.mark.parametrize(
+            "options_dict",
+            [
+            ({"fp_type": "maccs", "dense": False}),
+            ({"fp_type": "maccs", "dense": True}),
+            ], ids=["sparse", "dense"]
+    )    
+    def test_maccs_transformer_selected(self, STFP_transformer, options_dict):
+        """This test checks that the right transform function
+        (_transform_maccs) is selected"""
+        my_transformer = STFP_transformer.set_params(**options_dict).fit(x_smiles_1col)
+        assert my_transformer._transform_ == my_transformer._transform_maccs
 
+    @pytest.mark.parametrize(
+            "options_dict",
+            [
+            ({"fp_type": "maccs", "dense": False}),
+            ({"fp_type": "maccs", "dense": True}),
+            ], ids=["sparse", "dense"]
+    )    
+    @pytest.mark.parametrize(
+        "features",
+        [
+            np.array([["CC1=CC=C(C=C1)O"]]),
+            np.array([["C1=CC=C(C=C1)F"]]),
+        ], ids=["one column of SMILES", "two columns of SMILES"]
+    )
+    def test_transformer_reproduces_rdkit_for_maccs_fps(self, STFP_transformer, maccs_fp_generator, options_dict, features):
+        my_transformer = STFP_transformer.set_params(**options_dict).fit(features)
+        transformer_fp = my_transformer.transform(features)[0]
+        if not options_dict["dense"]:
+            transformer_fp = transformer_fp.toarray()
+        rdkit_fp = maccs_fp_generator(Chem.MolFromSmiles(features[0][0])).ToList()
+        npt.assert_array_equal(transformer_fp, rdkit_fp)
+
+    @pytest.mark.parametrize(
+            "options_dict, fp_generator",
+            [
+            ({"fp_type": "morgan", "dense": False, "fp_size":16, "counts": False, "radius": 3}, 
+             rdFingerprintGenerator.GetMorganGenerator),
+            ({"fp_type": "morgan", "dense": True, "fp_size":32, "counts": False, "radius": 4}, 
+             rdFingerprintGenerator.GetMorganGenerator),
+             ({"fp_type": "morgan", "dense": False, "fp_size":16, "counts": True, "radius": 7}, 
+             rdFingerprintGenerator.GetMorganGenerator),
+            ({"fp_type": "morgan", "dense": True, "fp_size":32, "counts": True, "radius": 2}, 
+             rdFingerprintGenerator.GetMorganGenerator),
+            ], ids=["morgan sparse bits", "morgan dense bits", "morgan sparse counts", "morgan dense counts"]
+    )    
+    @pytest.mark.parametrize(
+        "features",
+        [
+            np.array([["CC1=CC=C(C=C1)O"]]),
+            np.array([["C1=CC=C(C=C1)F"]]),
+        ], ids=["molecule 1", "molecule 2"]
+    )
+    def test_transformer_reproduces_morgan_fps(self, STFP_transformer, fp_generator, options_dict, features):
+        my_transformer = STFP_transformer.set_params(**options_dict).fit(features)
+        transformer_fp = my_transformer.transform(features)[0]
+        if not options_dict["dense"]:
+            transformer_fp = transformer_fp.toarray()
+        if options_dict["counts"]:
+            rdkit_fp = fp_generator(fpSize=options_dict["fp_size"], radius=options_dict["radius"]).GetCountFingerprintAsNumPy(Chem.MolFromSmiles(features[0][0]))
+        else:
+            rdkit_fp = fp_generator(fpSize=options_dict["fp_size"], radius=options_dict["radius"]).GetFingerprintAsNumPy(Chem.MolFromSmiles(features[0][0]))
+        npt.assert_array_equal(transformer_fp, rdkit_fp)
         
+    @pytest.mark.parametrize(
+            "options_dict, fp_generator",
+            [
+            ({"fp_type": "rdkit", "dense": False, "fp_size":8, "counts": False, "radius": 2}, 
+             rdFingerprintGenerator.GetRDKitFPGenerator),
+            ({"fp_type": "rdkit", "dense": True, "fp_size":64, "counts": False, "radius": 1}, 
+             rdFingerprintGenerator.GetRDKitFPGenerator),
+             ({"fp_type": "rdkit", "dense": False, "fp_size":8, "counts": True, "radius": 5}, 
+             rdFingerprintGenerator.GetRDKitFPGenerator),
+            ({"fp_type": "rdkit", "dense": True, "fp_size":64, "counts": True, "radius": 6}, 
+             rdFingerprintGenerator.GetRDKitFPGenerator),
+            ], ids=["rdkit sparse bits", "rdkit dense bits", "rdkit sparse counts", "rdkit dense counts"]
+    )    
+    @pytest.mark.parametrize(
+        "features",
+        [
+            np.array([["CC1=CC=C(C=C1)O"]]),
+            np.array([["C1=CC=C(C=C1)F"]]),
+        ], ids=["molecule 1", "molecule 2"]
+    )
+    def test_transformer_reproduces_rdkit_fps(self, STFP_transformer, fp_generator, options_dict, features):
+        my_transformer = STFP_transformer.set_params(**options_dict).fit(features)
+        transformer_fp = my_transformer.transform(features)[0]
+        if not options_dict["dense"]:
+            transformer_fp = transformer_fp.toarray()
+        if options_dict["counts"]:
+            rdkit_fp = fp_generator(fpSize=options_dict["fp_size"], maxPath=options_dict["radius"]).GetCountFingerprintAsNumPy(Chem.MolFromSmiles(features[0][0]))
+        else:
+            rdkit_fp = fp_generator(fpSize=options_dict["fp_size"], maxPath=options_dict["radius"]).GetFingerprintAsNumPy(Chem.MolFromSmiles(features[0][0]))
+        npt.assert_array_equal(transformer_fp, rdkit_fp)
     
 
 

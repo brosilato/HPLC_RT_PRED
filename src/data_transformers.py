@@ -1,7 +1,7 @@
 import numpy as np
 from numbers import Integral 
 from rdkit import Chem
-from rdkit.Chem import AllChem, MACCSkeys, rdFingerprintGenerator
+from rdkit.Chem import MACCSkeys, rdFingerprintGenerator
 from scipy import sparse
 from sklearn.base import BaseEstimator, TransformerMixin
 from sklearn.utils._param_validation import StrOptions, Interval
