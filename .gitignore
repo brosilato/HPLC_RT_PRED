@@ -1,4 +1,4 @@
 .env
 data/interim
 *.pyc
-models/
+/models/random_forest
