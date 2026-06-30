@@ -1,0 +1,75 @@
+model:
+  output_dir: /home/adrian/PROJECTS/HPLC_RT_PRED/models/random_forest
+  model_name: random_forest_rdkit_pipeline_2026_06_29_v0.pkl
+hyperparameters:
+  fp_transformer__fp_type: rdkit
+  fp_transformer__radius: 3
+  fp_transformer__fp_size: 1024
+  fp_transformer__dense: true
+  fp_transformer__counts: true
+  standard_scaler__with_mean: false
+  variance_thres__threshold: 0.0
+  rfr__n_estimators: 300
+  rfr__max_depth: 50
+  rfr__max_features: 0.25
+  rfr__max_samples: 0.9
+  rfr__n_jobs: null
+  rfr__random_state: 123456
+datasets:
+  train:
+    X_path: /home/adrian/PROJECTS/HPLC_RT_PRED/data/processed/X_train_set_retained.npy
+    y_path: /home/adrian/PROJECTS/HPLC_RT_PRED/data/processed/y_train_set_retained.npy
+  validation:
+    X_path: /home/adrian/PROJECTS/HPLC_RT_PRED/data/processed/X_val_set_retained.npy
+    y_path: /home/adrian/PROJECTS/HPLC_RT_PRED/data/processed/y_val_set_retained.npy
+  test:
+    X_path: /home/adrian/PROJECTS/HPLC_RT_PRED/data/processed/X_test_set_retained.npy
+    y_path: /home/adrian/PROJECTS/HPLC_RT_PRED/data/processed/y_test_set_retained.npy
+metrics:
+  train:
+    r**2: !!python/object/apply:numpy._core.multiarray.scalar
+    - &id001 !!python/object/apply:numpy.dtype
+      args:
+      - f8
+      - false
+      - true
+      state: !!python/tuple
+      - 3
+      - <
+      - null
+      - null
+      - null
+      - -1
+      - -1
+      - 0
+    - !!binary |
+      +/Wz+ca17j8=
+    mae: !!python/object/apply:numpy._core.multiarray.scalar
+    - *id001
+    - !!binary |
+      ffGKB3EsN0A=
+    mse: !!python/object/apply:numpy._core.multiarray.scalar
+    - *id001
+    - !!binary |
+      cYB3LAVGk0A=
+    rmse: !!python/object/apply:numpy._core.multiarray.scalar
+    - *id001
+    - !!binary |
+      J4Iuc4aPQUA=
+  validation:
+    r**2: !!python/object/apply:numpy._core.multiarray.scalar
+    - *id001
+    - !!binary |
+      jH+eVc796D8=
+    mae: !!python/object/apply:numpy._core.multiarray.scalar
+    - *id001
+    - !!binary |
+      6iDJQoocS0A=
+    mse: !!python/object/apply:numpy._core.multiarray.scalar
+    - *id001
+    - !!binary |
+      VNx5dJ8qukA=
+    rmse: !!python/object/apply:numpy._core.multiarray.scalar
+    - *id001
+    - !!binary |
+      FLzHXRZ2VEA=
