@@ -135,10 +135,8 @@ class SmilesToMolTransformer(BaseEstimator, TransformerMixin):
                     mol = Chem.MolFromSmiles('')
                     self.failed_mol_.append(smiles_string)
                 column.append(mol)    
-            transformed.append(np.array(column))
-        if len(transformed) > 1:
-            return np.hstack(transformed)
-        return transformed[0]
+            transformed.append(np.array(column).reshape(-1,1))
+        return np.hstack(transformed)
 
 
 class MolToFingerPrintTransformer(BaseEstimator, TransformerMixin):
