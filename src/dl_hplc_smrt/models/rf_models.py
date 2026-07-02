@@ -6,16 +6,9 @@ from sklearn.ensemble import RandomForestRegressor as RFR
 from sklearn.preprocessing import StandardScaler
 from sklearn.feature_selection import VarianceThreshold
 import yaml
-from dl_hplc_smrt.data_transformers import SmilesToMolTransformer as STM
-from dl_hplc_smrt.data_transformers import MolToFingerPrintTransformer as MTFP
-
-rf_fps_pipeline = Pipeline([    
-    ("mol_converter", STM()),
-    ("fp_transformer", MTFP(fp_type="rdkit", radius=3, fp_size=1024, dense=True, counts=True)),
-    ("standard_scaler", StandardScaler(with_mean=False)),
-    ("variance_thres", VarianceThreshold(threshold=0.0)),# Remove constant all-zero features    
-    ("rfr", RFR(n_estimators=300, max_depth=50, max_features=0.25, max_samples=0.9, n_jobs=7, random_state=123456))
-    ])
+from dl_hplc_smrt.data.data_transformers import SmilesToMolTransformer as STM
+from dl_hplc_smrt.data.data_transformers import MolToFingerPrintTransformer as MTFP
+from dl_hplc_smrt.data.sklearn_piplines import fps_pipeline
 
 class RF_FPS_PIPELINE:
     def __init__(self, config_file: Path):
@@ -29,13 +22,7 @@ class RF_FPS_PIPELINE:
     def build_pipeline(self):
         """Creates a sckit-learn pipeline: preprocessing (fingerprints generation) + molel (Random Forest Regressor)
         """
-        pipeline = Pipeline([
-            ("mol_converter", STM()),
-            ("fp_transformer", MTFP()),
-            ("standard_scaler", StandardScaler()),
-            ("variance_thres", VarianceThreshold()),# Remove constant all-zero features    
-            ("rfr", RFR())
-            ])
+        pipeline = fps_pipeline.steps.append(("rfr", RFR()))
         
         pipeline_params = self.config["hyperparameters"]
         pipeline.set_params(**pipeline_params)
