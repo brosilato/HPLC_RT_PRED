@@ -5,8 +5,8 @@ import numpy.testing as npt
 from scipy import sparse
 from rdkit import Chem
 from rdkit.Chem import MACCSkeys, rdFingerprintGenerator
-from dl_hplc_smrt.data_transformers import SmilesToMolTransformer as STM
-from dl_hplc_smrt.data_transformers import MolToFingerPrintTransformer as MTFP
+from dl_hplc_smrt.data.data_transformers import SmilesToMolTransformer as STM
+from dl_hplc_smrt.data.data_transformers import MolToFingerPrintTransformer as MTFP
 
 
 x_smiles_2col = np.array([["CC1=CC=C(C=C1)O","CCC(C)CC(C)CC"],
