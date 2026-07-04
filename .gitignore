@@ -2,3 +2,4 @@
 data/interim
 *.pyc
 /models/random_forest
+/models/extra-trees

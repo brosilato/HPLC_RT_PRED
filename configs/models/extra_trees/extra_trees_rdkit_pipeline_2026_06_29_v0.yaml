@@ -1,6 +1,6 @@
 model:
-  output_dir: /home/adrian/PROJECTS/HPLC_RT_PRED/models/random_forest
-  model_name: random_forest_rdkit_pipeline_2026_06_29_v0.pkl
+  output_dir: /home/adrian/PROJECTS/HPLC_RT_PRED/models/extra_trees
+  model_name: extra_trees_rdkit_pipeline_2026_06_29_v0.pkl
 hyperparameters:
   fp_transformer__fp_type: rdkit
   fp_transformer__radius: 3
@@ -8,12 +8,11 @@ hyperparameters:
   fp_transformer__dense: true
   fp_transformer__counts: true
   variance_thres__threshold: 0.0
-  rfr__n_estimators: 500
-  rfr__max_depth: null
-  rfr__max_features: 0.25
-  rfr__max_samples: 1.0
-  rfr__n_jobs: null
-  rfr__random_state: 123456
+  etr__n_estimators: 500
+  etr__max_depth: 300
+  etr__max_features: 0.5
+  etr__n_jobs: null
+  etr__random_state: 123456
 datasets:
   train:
     X_path: /home/adrian/PROJECTS/HPLC_RT_PRED/data/processed/X_train_set_retained.npy
@@ -42,33 +41,33 @@ metrics:
       - -1
       - 0
     - !!binary |
-      4Rx8jT3u7j8=
+      3UzasXni7z8=
     mae: !!python/object/apply:numpy._core.multiarray.scalar
     - *id001
     - !!binary |
-      mxEo+G3yNEA=
+      JSLY9vTx9z8=
     mse: !!python/object/apply:numpy._core.multiarray.scalar
     - *id001
     - !!binary |
-      geIze8D0j0A=
+      xRwRk0WSW0A=
     rmse: !!python/object/apply:numpy._core.multiarray.scalar
     - *id001
     - !!binary |
-      vIP+vl/6P0A=
+      VlfLiN0AJUA=
   validation:
     r**2: !!python/object/apply:numpy._core.multiarray.scalar
     - *id001
     - !!binary |
-      FPQHgkID6T8=
+      Z4H7idbe6D8=
     mae: !!python/object/apply:numpy._core.multiarray.scalar
     - *id001
     - !!binary |
-      aC/NNN/xSkA=
+      sWAF/E5zSkA=
     mse: !!python/object/apply:numpy._core.multiarray.scalar
     - *id001
     - !!binary |
-      tTN110IWukA=
+      2o6Y4D2eukA=
     rmse: !!python/object/apply:numpy._core.multiarray.scalar
     - *id001
     - !!binary |
-      nnNtxh5uVEA=
+      2CfSURmjVEA=
