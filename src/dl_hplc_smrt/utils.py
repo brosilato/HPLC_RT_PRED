@@ -1,11 +1,17 @@
 import itertools
+from pathlib import Path
+from typing import Literal
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
 from rdkit import Chem
+from sklearn import datasets
 from sklearn.base import clone
 import tqdm
+import torch
+from torch.nn.modules.loss import _Loss
+from dl_hplc_smrt.models.mlp_models import BaseModel
 
 
 def inchi_to_smiles(inchi_string: str) -> str | None:
@@ -123,13 +129,13 @@ class OptimizeParametersValidation():
             return None
 
 
-def evaluate_sklearn_model(model, datasets: dict['str', tuple|list], scores: dict[str, callable]):
+def evaluate_sklearn_model(model, datasets: dict['str', tuple|list], scores: dict[str, callable]) -> pd.DataFrame:
     """Evaluates a sklearn model on multiple datasets and scores.
     
     Args:
         model: The sklearn model to evaluate.
         datasets (dict): A dictionary mapping dataset names to (X, y) tuples.
-        scores (dict): A dictionary mapping score names to score functions.
+        scores (dict): A dictionary mapping score names to sklearn-like score functions.
 
     Returns:
         pd.DataFrame: A DataFrame containing the evaluation results.
@@ -142,7 +148,7 @@ def evaluate_sklearn_model(model, datasets: dict['str', tuple|list], scores: dic
 
     return pd.DataFrame(evaluation)
 
-def plot_results(y_targets, y_pred, title=None, limits=(400,1600)):
+def plot_results(y_targets, y_pred, title=None, limits=(400,1600)) -> plt.Figure:
     """Plots predicted vs target with error tolerance bands.
     
     Creates a scatter plot comparing predicted and target retention times, with
@@ -176,4 +182,142 @@ def plot_results(y_targets, y_pred, title=None, limits=(400,1600)):
     plt.ylabel("Predictions")
     return plt.gcf()
 
+def evaluate_pytorch_regressor(model, dataloaders: dict['str', tuple|list], scores: dict[str, callable]=None, device: Literal['cuda', 'cpu']='cpu') -> pd.DataFrame:
+    """Evaluates a PyTorch regression model on a given dataset.
 
+    Args:
+        model: The PyTorch model to evaluate.
+        dataloaders: A dictionary mapping dataset names to DataLoader instances.
+        scores (dict): A dictionary mapping score names to sklearn-like score functions.
+        device (Literal['cuda', 'cpu']): The device (CPU or GPU) to perform computations on.
+
+    Returns:
+        pd.DataFrame: A DataFrame containing the evaluation results.
+    """
+    model.eval()
+    model.to(device)   
+    evaluation = { "dataset": list(dataloaders.keys())}
+    with torch.no_grad():
+        for dataset in evaluation["dataset"]:
+            y_true = []
+            y_pred = []
+            for X_batch, y_batch in dataloaders[dataset]:
+                X_batch = X_batch.to(device)
+                y_batch = y_batch.to(device)
+
+                predictions = model(X_batch)
+            
+                y_true.append(y_batch.detach().squeeze().cpu().numpy())
+                y_pred.append(predictions.detach().squeeze().cpu().numpy())
+            y_true = np.hstack(y_true)
+            y_pred = np.hstack(y_pred)
+            for score_name, score_func in scores.items():
+                evaluation[score_name] = evaluation.get(score_name, []) + [score_func(y_true, y_pred)]
+
+    return pd.DataFrame(evaluation)
+
+def train_with_early_stopping(
+    model: BaseModel, 
+    train_loader: torch.utils.data.DataLoader, 
+    val_loader: torch.utils.data.DataLoader, 
+    criterion: torch.nn.Module, 
+    optimizer: torch.optim.Optimizer, 
+    checkpoint_path: str | Path,
+    delta: float=0.0,
+    scheduler: torch.optim.lr_scheduler._LRScheduler=None,
+    evals_per_epoch: int=10,
+    patience: int=5, 
+    epochs: int=100, 
+    device: Literal['cuda', 'cpu']="cpu",
+    init_epoch: int=0,
+    init_best_loss: float=np.inf,
+):
+    """
+    Trains a PyTorch model with early stopping based on validation loss.
+    
+    Parameters:
+        model: The PyTorch neural network to train.
+        train_loader: DataLoader for the training dataset.
+        val_loader: DataLoader for the validation dataset.
+        criterion: The loss function (e.g., nn.CrossEntropyLoss()).
+        optimizer: The optimizer (e.g., optim.Adam()).
+        scheduler: The learning rate scheduler (e.g., optim.lr_scheduler.StepLR()).
+        evals_per_epoch: How often to evaluate the model during each training epoch.
+        patience: How many epochs to wait for improvement before stopping.
+        epochs: Maximum number of epochs to train.
+        device: Device to run training on ('cuda' or 'cpu').
+        
+    Returns:
+        model: The trained model with the best weights restored.
+        history: Dictionary containing training and validation loss history.
+    """
+    model.to(device)
+    best_loss = init_best_loss
+    best_epoch_loss = best_loss
+    patience_counter = 0
+
+    eval_list = [int(len(train_loader)/(evals_per_epoch)*ii) for ii in range(1, evals_per_epoch)] + [len(train_loader)]
+    
+    history = {'epoch': [], 'mini_batch': [], 'train_loss': [], 'val_loss': []}
+    
+    for epoch in range(init_epoch, init_epoch + epochs):
+        # --- TRAINING PHASE ---
+        running_train_loss = 0.0
+        mini_batch_counter = 0
+        samples_counter = 0
+        for inputs, targets in train_loader:
+            #best_epoch_loss = best_loss
+            model.train()
+            inputs, targets = inputs.to(device), targets.to(device)         
+            
+            optimizer.zero_grad()
+            outputs = model(inputs)
+            loss = criterion(outputs, targets.view_as(outputs))  # Ensure targets are of shape (batch_size, 1)
+            loss.backward()
+            optimizer.step()
+            running_train_loss += loss.item() * inputs.size(0)
+            samples_counter += inputs.size(0)
+            mini_batch_counter += 1
+
+            if mini_batch_counter in eval_list:
+                model.eval()
+                running_val_loss = 0.0
+                with torch.no_grad():
+                    for inputs, targets in val_loader:
+                        inputs, targets = inputs.to(device), targets.to(device)
+                        outputs = model(inputs)
+                        loss = criterion(outputs, targets.view_as(outputs))  # Ensure targets are of shape (batch_size, 1)
+                        running_val_loss += loss.item() * inputs.size(0)
+                    val_loss = running_val_loss / len(val_loader.dataset)
+                    train_loss = running_train_loss / samples_counter
+                    history['epoch'].append(epoch)
+                    history['mini_batch'].append(mini_batch_counter)
+                    history['train_loss'].append(train_loss)
+                    history['val_loss'].append(val_loss)
+                print(f"Epoch {epoch}/{epochs} - Train Loss: {train_loss:.4f} - Val Loss: {val_loss:.4f}")
+                # Peek and save model---
+                if val_loss < best_loss:
+                    print(f"\tValidation loss improved from {best_loss:.4f} to {val_loss:.4f}. Saving model checkpoint.")
+                    best_loss = val_loss
+                    model.save_checkpoint(checkpoint_path, optimizer=optimizer, scheduler=scheduler, epoch=epoch, train_loss=train_loss, val_loss=val_loss)
+
+        new_best_epoch_loss = best_loss
+        print(f"best_epoch_loss: {best_epoch_loss:.3f}  || best_loss: {best_loss:.3f}")
+        if new_best_epoch_loss < (best_epoch_loss - delta):   
+            patience_counter = 0
+            # update best epoch loss
+            best_epoch_loss = new_best_epoch_loss
+        else:
+            patience_counter += 1
+        # Should we stop the training early?
+        if patience_counter >= patience:
+            print(f"\nEarly stopping triggered at epoch {epoch}. Best model saved ({str(checkpoint_path)}) but not loaded.")
+            break
+        print(f"best_epoch_loss: {best_epoch_loss:.3f}  || best_loss: {best_loss:.3f}")
+        print(patience_counter)
+
+        # Update the scheduler if provided
+        if scheduler is not None:
+            scheduler.step()              
+                
+    return pd.DataFrame(history)
