@@ -6,7 +6,7 @@ import torch.nn.functional as F
 
 class BaseModel(nn.Module, abc.ABC):
     def __init__(self):
-        super().__init__()
+        super(BaseModel, self).__init__()
 
     @abc.abstractmethod
     def forward(self, x):
@@ -33,6 +33,53 @@ class BaseModel(nn.Module, abc.ABC):
         """
         for param in self.parameters():
             param.requires_grad = True
+    
+    def save_checkpoint(
+            self,
+            path: str,
+            optimizer=None,
+            scheduler=None,
+            epoch=None,
+            train_loss=None,
+            val_loss=None,
+            comments=None
+            ):
+        """
+        Saves the model's state dictionary to the specified path. It may
+        include additional information like optimizer state, scheduler state,
+        epoch number, training loss, validation loss, and any comments.
+
+        Args:
+            path (str): The file path where the model checkpoint will be saved.
+            optimizer (torch.optim.Optimizer, optional): The optimizer used during training. Defaults to None.
+            scheduler (torch.optim.lr_scheduler._LRScheduler, optional): The learning rate scheduler used during training. Defaults to None.
+            epoch (int, optional): The current epoch number. Defaults to None.
+            train_loss (float, optional): The training loss at the time of saving. Defaults to None.
+            val_loss (float, optional): The validation loss at the time of saving. Defaults to None.
+            comments (str, optional): Any additional comments or notes about the checkpoint. Defaults to None.
+        """
+
+        checkpoint = {
+            'model_name': self.__class__.__name__,
+            'model_state_dict': self.state_dict(),
+            'rng_state': torch.get_rng_state(), # Crucial for exact reproducibility
+            'hyperparameters': self.get_hyperparams(),  # Save hyperparameters for future reference
+        }
+
+        if optimizer is not None:
+            checkpoint['optimizer_state_dict'] = optimizer.state_dict()
+        if scheduler is not None:
+            checkpoint['scheduler_state_dict'] = scheduler.state_dict()
+        if epoch is not None:
+            checkpoint['epoch'] = epoch
+        if train_loss is not None:
+            checkpoint['train_loss'] = train_loss
+        if val_loss is not None:
+            checkpoint['val_loss'] = val_loss
+        if comments is not None:
+            checkpoint['comments'] = comments
+
+        torch.save(checkpoint, path)
 
 class LinearLayerPerceptron(BaseModel):
     def __init__(
@@ -101,7 +148,7 @@ class MultiLayerPerceptron(BaseModel):
         # Loop through the dynamic layers sequentially
         for linear_layer in self.linear_layers[:-1]:
             x = linear_layer(x)
-            x = self.activation(x)
+            x = self.activation_layer(x)
 
         # Compute final prediction
         x = self.linear_layers[-1](x)
@@ -118,7 +165,8 @@ class MultiLayerPerceptron(BaseModel):
     
 class ComplexMultilayerPerceptron(BaseModel):
     def __init__(
-            self, num_features:int,
+            self, 
+            num_features:int,
             encoder_hidden_layers_dim: list[int]=[32,32],
             processer_hidden_layers_dim: list[int]= [16], 
             output_dim: int=1,
@@ -137,7 +185,7 @@ class ComplexMultilayerPerceptron(BaseModel):
         Raises:
             ValueError: _description_
         """
-        super(MultiLayerPerceptron, self).__init__()
+        super(ComplexMultilayerPerceptron, self).__init__()
 
         self.num_features = num_features
         self.encoder_hidden_layers_dim = encoder_hidden_layers_dim
@@ -168,14 +216,14 @@ class ComplexMultilayerPerceptron(BaseModel):
             )
         
         self.processer = MultiLayerPerceptron(
-            num_features=self.num_features, 
+            num_features=self.encoder_hidden_layers_dim[-1], 
             linear_layers_dim=self.processer_hidden_layers_dim,
             dropout_prob=self.dropout_prob,
             activation=self.activation
             )
         
         self.output_layer = nn.Linear(
-            self.decoder_hidden_layers_dim[-1], 
+            self.processer_hidden_layers_dim[-1], 
             self.output_dim
             )     
     
