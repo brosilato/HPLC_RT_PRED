@@ -224,13 +224,14 @@ def train_with_early_stopping(
     optimizer: torch.optim.Optimizer, 
     checkpoint_path: str | Path,
     delta: float=0.0,
+    eval_criterion: torch.nn.Module | None = None, 
     scheduler: torch.optim.lr_scheduler._LRScheduler=None,
     evals_per_epoch: int=10,
     patience: int=5, 
     epochs: int=100, 
     device: Literal['cuda', 'cpu']="cpu",
     init_epoch: int=0,
-    init_best_loss: float=np.inf,
+    init_best_eval_loss: float=np.inf,
 ):
     """
     Trains a PyTorch model with early stopping based on validation loss.
@@ -251,14 +252,16 @@ def train_with_early_stopping(
         model: The trained model with the best weights restored.
         history: Dictionary containing training and validation loss history.
     """
+    if eval_criterion is None:
+        eval_criterion = criterion
     model.to(device)
-    best_loss = init_best_loss
-    best_epoch_loss = best_loss
+    best_eval_loss = init_best_eval_loss
+    best_epoch_eval_loss = best_eval_loss
     patience_counter = 0
 
     eval_list = [int(len(train_loader)/(evals_per_epoch)*ii) for ii in range(1, evals_per_epoch)] + [len(train_loader)]
     
-    history = {'epoch': [], 'mini_batch': [], 'train_loss': [], 'val_loss': []}
+    history = {'epoch': [], 'mini_batch': [], 'train_loss': [], 'val_loss': [], 'val_eval_loss': []}
     
     for epoch in range(init_epoch, init_epoch + epochs):
         # --- TRAINING PHASE ---
@@ -282,38 +285,53 @@ def train_with_early_stopping(
             if mini_batch_counter in eval_list:
                 model.eval()
                 running_val_loss = 0.0
+                running_val_eval_loss = 0.0
                 with torch.no_grad():
                     for inputs, targets in val_loader:
                         inputs, targets = inputs.to(device), targets.to(device)
                         outputs = model(inputs)
+                        eval_loss = eval_criterion(outputs, targets.view_as(outputs))  # Ensure targets are of shape (batch_size, 1)
                         loss = criterion(outputs, targets.view_as(outputs))  # Ensure targets are of shape (batch_size, 1)
-                        running_val_loss += loss.item() * inputs.size(0)
+                        running_val_eval_loss += eval_loss.item() * inputs.size(0)
+                        running_val_loss += loss.item() * inputs.size(0)    
                     val_loss = running_val_loss / len(val_loader.dataset)
+                    val_eval_loss = running_val_eval_loss / len(val_loader.dataset)
                     train_loss = running_train_loss / samples_counter
                     history['epoch'].append(epoch)
                     history['mini_batch'].append(mini_batch_counter)
                     history['train_loss'].append(train_loss)
                     history['val_loss'].append(val_loss)
-                print(f"Epoch {epoch}/{epochs} - Train Loss: {train_loss:.4f} - Val Loss: {val_loss:.4f}")
-                # Peek and save model---
-                if val_loss < best_loss:
-                    print(f"\tValidation loss improved from {best_loss:.4f} to {val_loss:.4f}. Saving model checkpoint.")
-                    best_loss = val_loss
-                    model.save_checkpoint(checkpoint_path, optimizer=optimizer, scheduler=scheduler, epoch=epoch, train_loss=train_loss, val_loss=val_loss)
+                    history['val_eval_loss'].append(val_eval_loss)
 
-        new_best_epoch_loss = best_loss
-        print(f"best_epoch_loss: {best_epoch_loss:.3f}  || best_loss: {best_loss:.3f}")
-        if new_best_epoch_loss < (best_epoch_loss - delta):   
+                print(f"Epoch {epoch}/{epochs} - Train Loss: {train_loss:.4f} - Val Loss: {val_loss:.4f} - Val Eval Loss: {val_eval_loss:.4f}")
+                # Peek and save model---
+                if val_eval_loss < best_eval_loss:
+                    print(f"\tValidation evaluation loss improved from {best_eval_loss:.4f} to {val_eval_loss:.4f}. Saving model checkpoint.")
+                    best_eval_loss = val_eval_loss
+                    model.save_checkpoint(
+                        checkpoint_path, 
+                        optimizer=optimizer, 
+                        scheduler=scheduler, 
+                        epoch=epoch, 
+                        train_loss=train_loss, 
+                        val_loss=val_loss,  
+                        comments=f"Best model at epoch {epoch} with val_loss {val_loss:.4f} and val_eval_loss {val_eval_loss:.4f}",                        
+                        val_eval_loss=val_eval_loss,
+                        )
+
+        new_best_epoch_eval_loss = best_eval_loss
+        print(f"best_epoch_eval_loss: {best_epoch_eval_loss:.3f}  || best_eval_loss: {best_eval_loss:.3f}")
+        if new_best_epoch_eval_loss < (best_epoch_eval_loss - delta):   
             patience_counter = 0
-            # update best epoch loss
-            best_epoch_loss = new_best_epoch_loss
+            # update best epoch evaluation loss
+            best_epoch_eval_loss = new_best_epoch_eval_loss
         else:
             patience_counter += 1
         # Should we stop the training early?
         if patience_counter >= patience:
             print(f"\nEarly stopping triggered at epoch {epoch}. Best model saved ({str(checkpoint_path)}) but not loaded.")
             break
-        print(f"best_epoch_loss: {best_epoch_loss:.3f}  || best_loss: {best_loss:.3f}")
+        print(f"best_epoch_eval_loss: {best_epoch_eval_loss:.3f}  || best_eval_loss: {best_eval_loss:.3f}")
         print(patience_counter)
 
         # Update the scheduler if provided

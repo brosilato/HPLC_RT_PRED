@@ -42,7 +42,9 @@ class BaseModel(nn.Module, abc.ABC):
             epoch=None,
             train_loss=None,
             val_loss=None,
-            comments=None
+            val_eval_loss=None,
+            comments=None,
+            **kwargs: dict['str', any]
             ):
         """
         Saves the model's state dictionary to the specified path. It may
@@ -76,8 +78,12 @@ class BaseModel(nn.Module, abc.ABC):
             checkpoint['train_loss'] = train_loss
         if val_loss is not None:
             checkpoint['val_loss'] = val_loss
+        if val_eval_loss is not None:
+            checkpoint['val_eval_loss'] = val_eval_loss
         if comments is not None:
             checkpoint['comments'] = comments
+        for key, value in kwargs.items():
+            checkpoint[key] = value
 
         torch.save(checkpoint, path)
 
