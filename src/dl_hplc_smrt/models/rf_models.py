@@ -3,7 +3,6 @@ from pathlib import Path
 import joblib
 from sklearn.pipeline import Pipeline
 from sklearn.ensemble import RandomForestRegressor as RFR
-from sklearn.preprocessing import StandardScaler
 from sklearn.feature_selection import VarianceThreshold
 from sklearn.pipeline import Pipeline
 import yaml
@@ -13,11 +12,10 @@ from dl_hplc_smrt.data.data_transformers import MolToFingerPrintTransformer as M
 FPS_PIPELINE = Pipeline([    
     ("mol_converter", STM()),
     ("fp_transformer", MTFP()),
-    ("standard_scaler", StandardScaler()),
     ("variance_thres", VarianceThreshold()),# Remove constant all-zero features    
     ])
 
-class RF_FPS_PIPELINE:
+class RandomForestFpsPipeline:
     def __init__(self, config_file: Path):
         """ Loads the configuration file
         """
