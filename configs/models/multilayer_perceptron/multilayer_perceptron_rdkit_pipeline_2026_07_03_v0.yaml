@@ -1,0 +1,73 @@
+model:
+  output_dir: /home/adrian/PROJECTS/HPLC_RT_PRED/models/multilayer_perceptron
+  model_name: multilayer_perceptron_rdkit_pipeline_2026_07_03_v0.pt
+hyperparameters:
+  num_features: 968
+  encoder_hidden_layers_dim:
+  - 64
+  - 32
+  - 32
+  processer_hidden_layers_dim:
+  - 16
+  - 8
+  output_dim: 1
+  dropout_prob: 0.0
+  activation: relu
+datasets:
+  train:
+    X_path: /home/adrian/PROJECTS/HPLC_RT_PRED/data/processed/X_train_set_retained.npy
+    y_path: /home/adrian/PROJECTS/HPLC_RT_PRED/data/processed/y_train_set_retained.npy
+  validation:
+    X_path: /home/adrian/PROJECTS/HPLC_RT_PRED/data/processed/X_val_set_retained.npy
+    y_path: /home/adrian/PROJECTS/HPLC_RT_PRED/data/processed/y_val_set_retained.npy
+  test:
+    X_path: /home/adrian/PROJECTS/HPLC_RT_PRED/data/processed/X_test_set_retained.npy
+    y_path: /home/adrian/PROJECTS/HPLC_RT_PRED/data/processed/y_test_set_retained.npy
+metrics:
+  train:
+    r**2: !!python/object/apply:numpy._core.multiarray.scalar
+    - &id001 !!python/object/apply:numpy.dtype
+      args:
+      - f8
+      - false
+      - true
+      state: !!python/tuple
+      - 3
+      - <
+      - null
+      - null
+      - null
+      - -1
+      - -1
+      - 0
+    - !!binary |
+      AAAA4Hxh7T8=
+    mae: !!python/object/apply:numpy._core.multiarray.scalar
+    - *id001
+    - !!binary |
+      AAAAgHIGQEA=
+    mse: !!python/object/apply:numpy._core.multiarray.scalar
+    - *id001
+    - !!binary |
+      AAAAgDmRo0A=
+    rmse: !!python/object/apply:numpy._core.multiarray.scalar
+    - *id001
+    - !!binary |
+      AAAAoOYFSUA=
+  validation:
+    r**2: !!python/object/apply:numpy._core.multiarray.scalar
+    - *id001
+    - !!binary |
+      AAAAACKT6j8=
+    mae: !!python/object/apply:numpy._core.multiarray.scalar
+    - *id001
+    - !!binary |
+      AAAAQHNeRkA=
+    mse: !!python/object/apply:numpy._core.multiarray.scalar
+    - *id001
+    - !!binary |
+      AAAA4FVBtEA=
+    rmse: !!python/object/apply:numpy._core.multiarray.scalar
+    - *id001
+    - !!binary |
+      AAAA4JcAUkA=

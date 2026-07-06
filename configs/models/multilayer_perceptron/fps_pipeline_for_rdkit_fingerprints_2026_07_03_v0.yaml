@@ -1,0 +1,14 @@
+pipeline:
+  output_dir: /home/adrian/PROJECTS/HPLC_RT_PRED/configs/models/multilayer_perceptron
+  pipeline_name: fps_pipeline_for_rdkit_fingerprints_2026_07_03_v0.pkl
+hyperparameters:
+  fp_transformer__fp_type: rdkit
+  fp_transformer__radius: 3
+  fp_transformer__fp_size: 1024
+  fp_transformer__dense: true
+  fp_transformer__counts: true
+  variance_thres__threshold: 0.0
+datasets:
+  train:
+    X_path: /home/adrian/PROJECTS/HPLC_RT_PRED/data/processed/X_train_set_retained.npy
+    y_path: /home/adrian/PROJECTS/HPLC_RT_PRED/data/processed/y_train_set_retained.npy
