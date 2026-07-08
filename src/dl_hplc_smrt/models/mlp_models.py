@@ -17,7 +17,7 @@ FPS_PIPELINE = Pipeline([
     ("variance_thres", VarianceThreshold()),# Remove constant all-zero features    
     ])
     
-class BaseModel(nn.Module, abc.ABC):
+class BaseNet(nn.Module, abc.ABC):
     def __init__(self):
         super(BaseModel, self).__init__()
 
@@ -100,7 +100,7 @@ class BaseModel(nn.Module, abc.ABC):
 
         torch.save(checkpoint, path)
 
-class LinearLayerPerceptron(BaseModel):
+class LinearLayerPerceptron(BaseNet):
     def __init__(
             self, 
             input_dim:int,
@@ -131,7 +131,7 @@ class LinearLayerPerceptron(BaseModel):
         }
         return hyperparams
 
-class MultiLayerPerceptron(BaseModel):
+class MultiLayerPerceptron(BaseNet):
     def __init__(
             self, 
             num_features:int,
@@ -182,7 +182,7 @@ class MultiLayerPerceptron(BaseModel):
         }
         return hyperparams
     
-class ComplexMultilayerPerceptron(BaseModel):
+class ComplexMultilayerPerceptron(BaseNet):
     def __init__(
             self, 
             num_features:int,
