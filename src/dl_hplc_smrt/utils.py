@@ -11,7 +11,7 @@ from sklearn.base import clone
 import tqdm
 import torch
 from torch.nn.modules.loss import _Loss
-from dl_hplc_smrt.models.mlp_models import BaseModel
+from dl_hplc_smrt.models.mlp_models import BaseNet
 
 
 def inchi_to_smiles(inchi_string: str) -> str | None:
@@ -217,7 +217,7 @@ def evaluate_pytorch_regressor(model, dataloaders: dict['str', tuple|list], scor
     return pd.DataFrame(evaluation)
 
 def train_with_early_stopping(
-    model: BaseModel, 
+    model: BaseNet, 
     train_loader: torch.utils.data.DataLoader, 
     val_loader: torch.utils.data.DataLoader, 
     criterion: torch.nn.Module, 
