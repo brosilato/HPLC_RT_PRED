@@ -101,9 +101,14 @@ def predict(model_name: str, request: BatchPredictionRequest) -> BatchPrediction
     #processed_data = torch.from_numpy(processed_data)
     print(processed_data.shape)
     input_name = model.get_inputs()[0].name
-    prediction = model.run(None, {input_name: processed_data})
+    predictions = []
+    # Let's pass minibatches of up to 100
+    batch_size = 100
+    for i in range(0, len(processed_data), batch_size): 
+        predictions.extend(model.run(None, {input_name: processed_data[i:i+batch_size]}))
+    predictions = np.vstack(predictions)
     
-    return {"smiles": request.smiles, "model_name": model_name, "prediction": prediction[0].tolist(), "model_notes": model_notes[model_name]}
+    return {"smiles": request.smiles, "model_name": model_name, "prediction": predictions.tolist(), "model_notes": model_notes[model_name]}
 
 if __name__ == "__main__":
     import uvicorn
