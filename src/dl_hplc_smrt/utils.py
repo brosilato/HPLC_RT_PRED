@@ -43,7 +43,6 @@ class OptimizeParametersValidation():
             keep_highest (bool, optional): Whether to keep the optimized model
                 with the highest score (is higher better?). Defaults to False.
     """
-
     def __init__(
             self,
             model,
