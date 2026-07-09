@@ -19,7 +19,7 @@ FPS_PIPELINE = Pipeline([
     
 class BaseNet(nn.Module, abc.ABC):
     def __init__(self):
-        super(BaseModel, self).__init__()
+        super(BaseNet, self).__init__()
 
     @abc.abstractmethod
     def forward(self, x):
