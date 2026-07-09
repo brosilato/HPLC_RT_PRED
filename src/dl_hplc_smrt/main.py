@@ -1,6 +1,8 @@
+#from typing import Iterable
 from fastapi import FastAPI, HTTPException
 from pyprojroot import here
 from pydantic import BaseModel, Field
+from numpydantic import NDArray, Shape
 import joblib
 import onnxruntime as ort
 import numpy as np
@@ -37,11 +39,20 @@ model_notes = {
 class PredictionRequest(BaseModel):
     smiles: str = Field(description="Molecular SMILES of a single molecule")
 
+class BatchPredictionRequest(BaseModel):
+    smiles: list[str] = Field(description="List of molecular SMILES")
+
 class PredictionResponse(BaseModel):
     smiles: str = Field(description="Molecular SMILES of a single molecule")
     model_name: str =  Field(description="Name od the model used for the prediction")
     prediction: float = Field(description="Predicted retention time in seconds")
-    model_notes: str = Field(description="relevant information about the model used")
+    model_notes: str = Field(description="Relevant information about the model used")
+
+class BatchPredictionResponse(BaseModel):
+    smiles: list[str] = Field(description="List of molecular SMILES")
+    model_name: str =  Field(description="Name od the model used for the prediction")
+    prediction: list[list[float]] = Field(description="Array of predicted retention times in seconds, one row per molecule")
+    model_notes: str = Field(description="Relevant information about the model used")
 
 @app.get("/")
 def read_root() -> dict[str, str]:
@@ -65,20 +76,34 @@ def predict(model_name: str, request: PredictionRequest) -> PredictionResponse:
     if model_name not in model_names:
         raise HTTPException(status_code=404, detail="Model not found")
     
-    # 3. Select the model and perform inference
     data_pipeline = data_pipelines.get(model_name, None)
     model = models[model_name]
     processed_data = np.array([[request.smiles]])
     if data_pipeline is not None:
         processed_data = data_pipeline.transform(processed_data).astype(np.float32)
     #processed_data = torch.from_numpy(processed_data)
+    print(processed_data.shape)
     input_name = model.get_inputs()[0].name
     prediction = model.run(None, {input_name: processed_data})
-    print(prediction)
-    print(type(prediction))
-    print(len(prediction))
     
     return {"smiles": request.smiles, "model_name": model_name, "prediction": prediction[0][0][0], "model_notes": model_notes[model_name]}
+
+@app.post("/batch_predict/{model_name}")
+def predict(model_name: str, request: BatchPredictionRequest) -> BatchPredictionResponse:
+    if model_name not in model_names:
+        raise HTTPException(status_code=404, detail="Model not found")
+    
+    data_pipeline = data_pipelines.get(model_name, None)
+    model = models[model_name]
+    processed_data = np.array([request.smiles]).reshape(-1,1)
+    if data_pipeline is not None:
+        processed_data = data_pipeline.transform(processed_data).astype(np.float32)
+    #processed_data = torch.from_numpy(processed_data)
+    print(processed_data.shape)
+    input_name = model.get_inputs()[0].name
+    prediction = model.run(None, {input_name: processed_data})
+    
+    return {"smiles": request.smiles, "model_name": model_name, "prediction": prediction[0].tolist(), "model_notes": model_notes[model_name]}
 
 if __name__ == "__main__":
     import uvicorn
